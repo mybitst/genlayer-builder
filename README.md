@@ -52,6 +52,16 @@ https://mybitst.github.io/genlayer-builder/
 
 部署时踩到一点值得单独说。02 和 03 的构造函数都要参数，第一次不带参数部署，交易能上链、状态是已接受，但执行结果是 ERROR，合约照样生成一个地址。这种失败不会阻断部署，只看交易状态是发现不了的，要读执行结果。
 
+## 链上证据
+
+三个地址都能在 Studio 网络上直接读，不需要信任这个页面的说法。
+
+01 笔记登记 `0x9d6788836D8B0dB3022873F07461d262ae08B5ba`，写过一条记录，交易 `0x56d7e332040dc7851a11acdc933c18be666df7e6efff291284cc03e926d6f5b5`，共识状态 5，执行结果 SUCCESS，写入后 `count()` 从 0 变成 1。
+
+02 价格预言机 `0xA6546d32F101521e0977EDA98188393E9eedB149`，部署交易 `0xf18d88c5efade99a9f74cfc2e62ca97c341c7309070466e233ec57cba679af3d`，执行结果 SUCCESS。
+
+03 证据判定 `0x5e744eaBC19e5712221aEB653A1924B7A7Ae2dfD`，部署交易 `0x355e9f86a03d61b769d802dbff9ad61addfa7d5b1f830080c828d68af0db3b1a`，执行结果 SUCCESS。
+
 ## 用之前先知道
 
 模板按官方文档的 API 写的，包括 `gl.nondet.web.*`、`gl.vm.run_nondet_unsafe`、
