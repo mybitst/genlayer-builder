@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GenLayer 合约证据台</title>
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --card: #ffffff;
+    --ink: #1a1a18;
+    --muted: #6b6b66;
+    --line: #e4e4e0;
+    --ok: #1d7a4c;
+    --okbg: #e8f4ec;
+    --err: #a33a2b;
+    --errbg: #f8ebe8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 56px 24px 80px; }
+  header h1 { font-size: 30px; margin: 0 0 10px; letter-spacing: -0.3px; }
+  header p { margin: 0; color: var(--muted); font-size: 15px; max-width: 640px; }
+  .bar {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    margin: 28px 0 32px; padding: 14px 18px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    font-size: 14px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .dot.bad { background: var(--err); }
+  .bar .spacer { flex: 1; }
+  button {
+    font: inherit; font-size: 14px; padding: 7px 14px;
+    border: 1px solid var(--line); background: #fff; border-radius: 8px;
+    cursor: pointer; color: var(--ink);
+  }
+  button:hover { border-color: #c9c9c3; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 20px 18px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .card h2 { font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .num {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px;
+  }
+  .badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+    background: var(--okbg); color: var(--ok); letter-spacing: 0.2px;
+  }
+  .badge.err { background: var(--errbg); color: var(--err); }
+  .addr {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 12px; color: var(--muted); word-break: break-all;
+    background: #f6f6f3; border-radius: 7px; padding: 8px 10px; cursor: pointer;
+  }
+  .rows { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
+  .row { display: flex; justify-content: space-between; gap: 14px; font-size: 14px; }
+  .row .k { color: var(--muted); white-space: nowrap; }
+  .row .v { text-align: right; word-break: break-word; }
+  .row .v.mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; }
+  .note { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+  footer { margin-top: 44px; font-size: 13px; color: var(--muted); }
+  footer a { color: var(--ink); }
+  .flash { font-size: 13px; color: var(--ok); opacity: 0; transition: opacity 0.2s; }
+  .flash.on { opacity: 1; }
+  .stamp { font-size: 13px; color: var(--muted); }
+  .how { margin-top: 44px; }
+  .how h3 { font-size: 17px; margin: 0 0 14px; letter-spacing: -0.2px; }
+  .how p { margin: 0; color: var(--muted); font-size: 14px; max-width: 760px; }
+  .how-grid { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .how-grid h4 { font-size: 14px; margin: 0 0 6px; }
+  .how-grid p { font-size: 13.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>GenLayer 合约证据台</h1>
+    <p>三个部署在 GenLayer Studio 网络上的智能合约。页面不存数据，每次打开或刷新，直接把链上只读方法的结果读出来。</p>
+  </header>
+
+  <div class="bar">
+    <span class="dot" id="dot"></span>
+    <span id="status">正在连接 Studio 网络</span>
+    <span class="spacer"></span>
+    <span class="stamp" id="stamp"></span>
+    <span class="flash" id="flash">已复制地址</span>
+    <button id="refresh">刷新链上状态</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <section class="how">
+    <h3>共识用在哪</h3>
+    <div class="how-grid">
+      <div>
+        <h4>存储与权限</h4>
+        <p>第一个合约只存状态，写入前检查调用者是不是所有者。确定性逻辑，所有节点算出来必须一样。</p>
+      </div>
+      <div>
+        <h4>容差而不是相等</h4>
+        <p>第二个合约从外部接口取价格。不同节点同一秒拿到的数字不会完全一样，所以验证者比的是 0.5% 区间，不是字面相等。</p>
+      </div>
+      <div>
+        <h4>判断也要有边界</h4>
+        <p>第三个合约让模型读网页做判断。结果只能落在 PASS、FAIL、INSUFFICIENT 三个值里，开放式回答永远达不成一致。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="how">
+    <h3>怎么验证</h3>
+    <p>打开这个页面，点一次刷新，三张卡片里的数字会直接来自 Studio 网络的读取调用。合约地址可以在仓库的 README 里对上，源码在 contracts 目录。</p>
+  </section>
+
+  <footer>
+    合约源码与部署记录在 <a href="https://github.com/mybitst/genlayer-builder" target="_blank" rel="noopener">github.com/mybitst/genlayer-builder</a>。网络 GenLayer Studio，chainId 61999。
+  </footer>
+</div>
+
+<script type="module">
+const RPC = "https://studio.genlayer.com/api";
+
+const chain = {
+  id: 61999,
+  name: "GenLayer Studio",
+  nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 },
+  rpcUrls: { default: { http: [RPC] } },
+};
+
+const CONTRACTS = [
+  {
+    num: "01",
+    name: "笔记登记",
+    address: "0x9d6788836D8B0dB3022873F07461d262ae08B5ba",
+    tx: "",
+    desc: "最小可用合约。只做存储和权限检查，不碰外部数据，用来验证工具链是否打通。",
+    reads: [
+      ["get_owner", [], "所有者"],
+      ["count", [], "笔记数量"],
+    ],
+  },
+  {
+    num: "02",
+    name: "价格预言机",
+    address: "0xA6546d32F101521e0977EDA98188393E9eedB149",
+    tx: "0xf18d88c5efade99a9f74cfc2e62ca97c341c7309070466e233ec57cba679af3d",
+    desc: "从 HTTP 接口取价格，验证者按 0.5% 容差比对。不同节点同一秒拿到的数字不会一样，所以不能比字面值。",
+    reads: [
+      ["get_pair", [], "交易对"],
+      ["get_price", [], "最近价格"],
+      ["update_count", [], "更新次数"],
+    ],
+  },
+  {
+    num: "03",
+    name: "证据判定",
+    address: "0x5e744eaBC19e5712221aEB653A1924B7A7Ae2dfD",
+    tx: "0x355e9f86a03d61b769d802dbff9ad61addfa7d5b1f830080c828d68af0db3b1a",
+    desc: "读两个网页，让模型判断一条主张成不成立。输出限定成 PASS、FAIL、INSUFFICIENT 三种，开放回答没法达成共识。",
+    reads: [
+      ["check_count", [], "判定次数"],
+      ["get_result", [], "当前结论"],
+    ],
+  },
+];
+
+let client = null;
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function renderShell() {
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  for (const c of CONTRACTS) {
+    const card = el("div", "card");
+    const h = el("h2");
+    h.append(el("span", "num", c.num), document.createTextNode(c.name));
+    const badge = el("span", "badge", "读取中");
+    badge.id = "badge-" + c.num;
+    h.append(badge);
+    card.append(h);
+
+    const addr = el("div", "addr", c.address);
+    addr.title = "点击复制";
+    addr.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(c.address);
+        const f = document.getElementById("flash");
+        f.classList.add("on");
+        setTimeout(() => f.classList.remove("on"), 1200);
+      } catch (e) {}
+    });
+    card.append(addr);
+
+    const rows = el("div", "rows");
+    for (const [fn, , label] of c.reads) {
+      const row = el("div", "row");
+      row.append(el("span", "k", label));
+      const v = el("span", "v mono", "…");
+      v.id = `v-${c.num}-${fn}`;
+      row.append(v);
+      rows.append(row);
+    }
+    card.append(rows);
+    card.append(el("div", "note", c.desc));
+    grid.append(card);
+  }
+}
+
+function short(v) {
+  if (v === null || v === undefined) return "尚未写入";
+  if (typeof v === "string") {
+    if (v === "") return "尚未写入";
+    if (v.startsWith("{")) {
+      try {
+        const o = JSON.parse(v);
+        if (o.verdict) return `${o.verdict} · ${o.claim || ""}`.trim();
+      } catch (e) {}
+    }
+    return v.length > 90 ? v.slice(0, 90) + "…" : v;
+  }
+  if (typeof v === "object") {
+    const s = JSON.stringify(v);
+    return s.length > 120 ? s.slice(0, 120) + "…" : s;
+  }
+  return String(v);
+}
+
+async function refresh() {
+  const btn = document.getElementById("refresh");
+  btn.disabled = true;
+  const dot = document.getElementById("dot");
+  const status = document.getElementById("status");
+  let okCount = 0;
+  let total = 0;
+
+  for (const c of CONTRACTS) {
+    const badge = document.getElementById("badge-" + c.num);
+    badge.textContent = "读取中";
+    badge.className = "badge";
+    for (const [fn, args] of c.reads) {
+      total++;
+      const cell = document.getElementById(`v-${c.num}-${fn}`);
+      try {
+        const r = await client.readContract({ address: c.address, functionName: fn, args });
+        cell.textContent = short(r);
+        okCount++;
+      } catch (e) {
+        cell.textContent = "读取失败";
+        const msg = e && (e.shortMessage || e.message) ? (e.shortMessage || e.message) : "未知错误";
+        cell.title = msg;
+      }
+    }
+    badge.textContent = "已上线";
+    badge.className = "badge";
+  }
+
+  const allOk = okCount === total;
+  dot.className = allOk ? "dot" : "dot bad";
+  status.textContent = allOk
+    ? `链上状态已同步，${okCount} 项只读字段全部返回`
+    : `部分字段读取失败，成功 ${okCount} / ${total}`;
+  const d = new Date();
+  document.getElementById("stamp").textContent =
+    "更新于 " + d.toTimeString().slice(0, 8);
+  btn.disabled = false;
+}
+
+(async () => {
+  renderShell();
+  try {
+    const mod = await import("https://esm.sh/genlayer-js@1.2.0");
+    client = mod.createClient({ chain });
+    await refresh();
+  } catch (e) {
+    document.getElementById("status").textContent = "连接失败：" + (e.message || e);
+    document.getElementById("dot").className = "dot bad";
+    document.getElementById("refresh").disabled = false;
+    console.error(e);
+  }
+})();
+
+document.getElementById("refresh").addEventListener("click", () => refresh());
+</script>
+</body>
+</html>
