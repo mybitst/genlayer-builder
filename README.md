@@ -36,6 +36,18 @@
 
 比如两个 RPC 入口 chainId 一样但指向不同部署，比如回执 `status 0x1` 但合约根本没创建。
 
+## 已部署验证
+
+三份模板都在 Studio 网络上跑通了，地址可查，只读方法返回值正常。
+
+01 最小合约 `0x9d6788836D8B0dB3022873F07461d262ae08B5ba`，`count()` 返回 0，`get_owner()` 返回部署者地址。
+
+02 价格预言机 `0xA6546d32F101521e0977EDA98188393E9eedB149`，`get_pair()` 返回 `ETH/USD`，`update_count()` 返回 0。
+
+03 证据判定 `0x5e744eaBC19e5712221aEB653A1924B7A7Ae2dfD`，`get_result()` 返回带 claim 和 verdict 的结构，初始状态 `INSUFFICIENT`。
+
+部署时踩到一点值得单独说。02 和 03 的构造函数都要参数，第一次不带参数部署，交易能上链、状态是已接受，但执行结果是 ERROR，合约照样生成一个地址。这种失败不会阻断部署，只看交易状态是发现不了的，要读执行结果。
+
 ## 用之前先知道
 
 模板按官方文档的 API 写的，包括 `gl.nondet.web.*`、`gl.vm.run_nondet_unsafe`、
